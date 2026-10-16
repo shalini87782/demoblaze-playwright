@@ -1,61 +1,100 @@
-# DemoBlaze Playwright suite
+# DemoBlaze Playwright Suite
 
-A compact end-to-end suite for the [DemoBlaze Product Store](https://www.demoblaze.com/), implemented with Playwright Test and TypeScript using Page Object Model (POM) modules.
+End-to-end browser tests for the [DemoBlaze Product Store](https://www.demoblaze.com/), written in TypeScript with Playwright Test and the Page Object Model (POM).
 
-## Coverage
+## Test coverage
 
-- Catalog category filtering and negative coverage that laptops exclude a phone.
-- Product details, add-to-cart behavior, and an invalid product ID boundary check.
-- Cart line item and calculated total, item removal, and the empty-cart state.
-- Successful login using credentials in `test-data/login-credentials.json`, plus an unknown-username rejection with the correct password.
-- Successful guest and logged-in customer checkout using dummy order details from `test-data/purchase-details.json`.
-- Negative checkout coverage for blank required fields, plus an expected-failure test for malformed card numbers.
-- Purchase confirmation screenshots are attached to the Playwright report for guest and logged-in checkout.
+- Catalog category filtering and exclusion of products from other categories.
+- Product details, add-to-cart behavior, and invalid product ID handling.
+- Cart contents, total price, item removal, and empty-cart state.
+- Successful and unsuccessful login scenarios.
+- Guest and logged-in checkout, blank required fields, and malformed card behavior.
+- Purchase confirmation screenshots attached to successful checkout test results.
 
-DemoBlaze's purchase code checks only whether the name and card fields are blank; it accepts malformed, non-empty card values. The malformed-card test is marked with `test.fail()` to document that known limitation without treating the current behavior as an unexpected regression.
+The DemoBlaze demo site currently checks only whether the name and card fields are blank; it accepts malformed non-empty card values. The malformed-card test uses `test.fail()` to document this known site limitation.
 
-A DemoBlaze demo account was created for the successful login case. Its credentials are stored in `test-data/login-credentials.json`, which is excluded by `.gitignore`. Dummy checkout information, including the test card number, is stored in `test-data/purchase-details.json`. These values are for the public demo site only; do not use production payment details.
+## Project file guide
 
-Each test gets a fresh browser context. The suite uses accessible roles and text where available, and stable IDs for controls that have no accessible labels. Native JavaScript alerts are explicitly awaited and asserted. Locators have descriptive names and are created inside the Page Object methods that use them. Playwright's locator assertions and synchronization are used throughout; there are no fixed sleeps.
+### Root files
 
-## POM modules
+| File | Description |
+| --- | --- |
+| `.gitignore` | Excludes dependencies, generated Playwright reports/results, downloaded browsers, local login credentials, and the local staging folder. |
+| `README.md` | Project overview, setup instructions, test coverage, and this file guide. |
+| `package.json` | Project metadata, npm scripts, and development dependencies. |
+| `package-lock.json` | Locks dependency versions for repeatable npm installs. |
+| `playwright.config.ts` | Playwright test discovery, browser settings, base URL, retries, worker count, reporters, and failure artifacts. |
+| `tsconfig.json` | TypeScript compiler options and source/test file inclusion. |
+| `purchase-confirmation.png` | Sample purchase confirmation screenshot kept with the project. |
 
-- `src/pages/catalog-page.ts`: open the store, filter categories, and open a product.
-- `src/pages/product-page.ts`: verify product details, add the current product to the cart, and handle the site alert.
-- `src/pages/cart-page.ts`: open the cart and access cart rows and totals.
-- `src/pages/login-page.ts`: open the login dialog, submit credentials, and assert login state.
-- `src/pages/checkout-page.ts`: enter checkout details, submit an order, and assert confirmation.
-- `tests/helpers/cart-setup.ts`: reusable test setup to add a product and navigate to the cart.
-- `tests/catalog/`, `tests/product/`, `tests/cart/`, `tests/login/`, `tests/checkout/`: scenario specs grouped by feature.
+### Page objects and types
 
-## Requirements
+| File | Description |
+| --- | --- |
+| `src/pages/catalog-page.ts` | Opens the store, filters product categories, and opens a product. |
+| `src/pages/product-page.ts` | Reads product details, adds a product to the cart, and handles the site's alert. |
+| `src/pages/cart-page.ts` | Opens the cart and exposes cart rows, totals, delete controls, and checkout. |
+| `src/pages/login-page.ts` | Opens the login form, submits credentials, and checks login state. |
+| `src/pages/checkout-page.ts` | Enters order details, submits checkout, and checks validation or confirmation. |
+| `src/types/purchase-details.ts` | Type definition for checkout data. |
 
-- Node.js 18 or newer
-- npm
+### Test data
+
+| File | Description |
+| --- | --- |
+| `test-data/purchase-details.json` | Dummy customer and card data for checkout tests; it is for the demo site only. |
+| `test-data/login-credentials.example.json` | Safe template for the demo account login data. The password is a placeholder and must be replaced locally. |
+| `test-data/login-credentials.json` | Local demo-account credentials used by login and logged-in checkout tests. This file is intentionally ignored by Git; never commit its password or any real/private credentials. |
+
+### Tests and helpers
+
+| File | Description |
+| --- | --- |
+| `tests/support.ts` | Re-exports shared cart setup and product constants for tests. |
+| `tests/helpers/cart-setup.ts` | Reusable workflow that opens a product, adds it to the cart, and opens the cart. |
+| `tests/catalog/catalog.spec.ts` | Catalog category filtering and cross-category exclusion tests. |
+| `tests/product/product.spec.ts` | Product details, add-to-cart, and invalid product ID tests. |
+| `tests/cart/cart.spec.ts` | Cart contents and total, deletion, and empty-cart tests. |
+| `tests/login/login.spec.ts` | Valid login and unknown-username rejection tests. |
+| `tests/checkout/checkout.spec.ts` | Guest and logged-in checkout, blank-field validation, and malformed-card tests. |
 
 ## Setup and run
+
+Requirements: Node.js 18 or newer and npm.
 
 ```bash
 npm install
 npx playwright install chromium
-npm test
 ```
 
-For headed runs or interactive debugging:
+Copy `test-data/login-credentials.example.json` to `test-data/login-credentials.json` and replace the password placeholder with the password for your DemoBlaze demo account:
+
+```json
+{
+  "userId": "shalinishirolkar",
+  "password": "replace-with-your-demo-password"
+}
+```
+
+Do not commit `test-data/login-credentials.json`. It is excluded by `.gitignore`.
+
+Run the tests and TypeScript check:
+
+```bash
+npm test
+npx tsc --noEmit
+```
+
+Additional commands:
 
 ```bash
 npm run test:headed
 npm run test:ui
-```
-
-Open the HTML report after a run with:
-
-```bash
 npm run report
 ```
 
-## Reliability choices
+## Reliability and artifacts
 
-`playwright.config.ts` sets `retries: 3`, so each failed test is retried three times before Playwright reports the final result. Failure traces, screenshots, and videos are retained to help diagnose intermittent failures. Tests run independently and in parallel by default. On CI, the worker count is capped at two and exclusive tests are rejected.
+Each test uses a fresh browser context. Playwright uses role/text locators where available, locator assertions, and event-based synchronization; the tests do not use fixed sleeps. The configuration runs with two workers and retries failed tests three times. Traces, screenshots, and videos are retained for failures, and an HTML report can be opened with `npm run report`.
 
-The login tests use the dedicated demo account in the local credentials JSON; each test starts in a fresh browser context. The store is a public demo service, so availability and backend state depend on the live site.
+The suite exercises a public demo service, so results can be affected by the site's availability, loading behavior, and shared backend state.
